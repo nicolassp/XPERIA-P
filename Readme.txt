@@ -1,7 +1,7 @@
 Welcome to nicolassp's XPERIA-P	repo regarding Nemesis Kernel which is a fast,smooth and 
 minimal kernel to drive your device into higher levels of responsiveness.
 
-I and cpascal7 created a team called OLYMPUS Team to offer you the best experience 
+I and cpascal7 created a team called OLYMPUS TEAM to offer you the best experience 
 possible.
 
 ########################################################################################
