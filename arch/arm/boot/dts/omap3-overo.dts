@@ -1,7 +1,0 @@
-/dts-v1/;
-/include/ "skeleton.dtsi"
-
-/ {
-	model = "Gumstix Overo";
-	compatible = "gumstix,omap3-overo";
-};
