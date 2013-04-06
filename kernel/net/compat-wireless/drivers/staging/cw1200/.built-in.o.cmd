@@ -1,0 +1,1 @@
+cmd_net/compat-wireless/drivers/staging/cw1200/built-in.o :=  /home/nicolassp/Desktop/android-toolchain-eabi/bin/arm-eabi-ld -EL    -r -o net/compat-wireless/drivers/staging/cw1200/built-in.o net/compat-wireless/drivers/staging/cw1200/cw1200_core.o net/compat-wireless/drivers/staging/cw1200/cw1200_wlan.o 
