@@ -1,0 +1,9 @@
+/*
+ * Copyright (C) 2012 Sony Mobile Communications AB.
+ * All rights, including trade secret rights, reserved.
+ */
+
+a:-webkit-any-link:hover {
+    /* Make links more visible with Floating Touch */
+    outline: currentColor dotted 2px;
+}
