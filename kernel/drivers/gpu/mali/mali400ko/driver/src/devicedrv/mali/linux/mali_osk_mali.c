@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -8,90 +8,103 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-/*
- * Copyright (C) ST-Ericsson SA 2011
- *
- * Added support for overriding memory settings in arch_configuration using
- * mali_mem module parameter.
- *
- * Author: Magnus Wendt <magnus.wendt@stericsson.com> for
- * ST-Ericsson.
- */
-
 /**
  * @file mali_osk_mali.c
  * Implementation of the OS abstraction layer which is specific for the Mali kernel device driver
  */
 #include <linux/kernel.h>
 #include <asm/uaccess.h>
+#include <linux/platform_device.h>
+#include <linux/mali/mali_utgard.h>
 
+#include "mali_osk_mali.h"
 #include "mali_kernel_common.h" /* MALI_xxx macros */
 #include "mali_osk.h"           /* kernel side OS functions */
 #include "mali_uk_types.h"
-#include "mali_kernel_linux.h"  /* exports initialize/terminate_kernel_device() definition of mali_osk_low_level_mem_init() and term */
-#include "arch/config.h"        /* contains the configuration of the arch we are compiling for */
+#include "mali_kernel_linux.h"
 
-extern char* mali_mem;
-
-/* is called from mali_kernel_constructor in common code */
-_mali_osk_errcode_t _mali_osk_init( void )
+_mali_osk_errcode_t _mali_osk_resource_find(u32 addr, _mali_osk_resource_t *res)
 {
-	if (0 != initialize_kernel_device()) MALI_ERROR(_MALI_OSK_ERR_FAULT);
+	int i;
 
-	mali_osk_low_level_mem_init();
-	
-	MALI_SUCCESS;
-}
+	if (NULL == mali_platform_device)
+	{
+		/* Not connected to a device */
+		return _MALI_OSK_ERR_ITEM_NOT_FOUND;
+	}
 
-/* is called from mali_kernel_deconstructor in common code */
-void _mali_osk_term( void )
-{
-	mali_osk_low_level_mem_term();
-	terminate_kernel_device();
-}
+	for (i = 0; i < mali_platform_device->num_resources; i++)
+	{
+		if (IORESOURCE_MEM == resource_type(&(mali_platform_device->resource[i])) &&
+		    mali_platform_device->resource[i].start == addr)
+		{
+			if (NULL != res)
+			{
+				res->base = addr;
+				res->description = mali_platform_device->resource[i].name;
 
-_mali_osk_errcode_t _mali_osk_resources_init( _mali_osk_resource_t **arch_config, u32 *num_resources )
-{
-    *num_resources = sizeof(arch_configuration) / sizeof(arch_configuration[0]);
-    *arch_config = arch_configuration;
-
-	/* override the MEMORY resource if a value has been supplied from the command line */
-	if ('\0' != mali_mem[0]) {
-		char *p = mali_mem;
-		_mali_osk_resource_type_t mem_type = MEMORY;
-		unsigned long mem_base = 0;
-		unsigned long mem_size = memparse(p, &p);
-		if (*p == '@') {
-			if ((*(p + 1) == 'O') || (*(p + 1) == 'o')) { /* as in OS. e.g. mali_mem=64M@OS_MEMORY */
-				mem_type = OS_MEMORY;
-				mem_base = 0;
-			} else { /* parse the base address */
-				mem_type = MEMORY;
-				mem_base = memparse(p + 1, &p);
-			}
-		}
-
-		/* change the first memory entry in the architecture config. */
-		if (0 <= mem_size) {
-			int i;
-			for (i = 0; i < *num_resources; ++i) {
-				if (MEMORY == arch_configuration[i].type) {
-					MALI_DEBUG_PRINT( 1, ("Overriding arch resource[%d] :\n",i));
-					MALI_DEBUG_PRINT( 1, ("Type: %s, base: %x, size %x\n",
-						(OS_MEMORY==mem_type?"OS_MEMORY":"MEMORY"),mem_base,mem_size));
-					arch_configuration[i].type = mem_type;
-					arch_configuration[i].base = mem_base;
-					arch_configuration[i].size = mem_size;
-					break;
+				/* Any (optional) IRQ resource belonging to this resource will follow */
+				if ((i + 1) < mali_platform_device->num_resources &&
+				    IORESOURCE_IRQ == resource_type(&(mali_platform_device->resource[i+1])))
+				{
+					res->irq = mali_platform_device->resource[i+1].start;
 				}
+				else
+				{
+					res->irq = -1;
+				}
+			}
+			return _MALI_OSK_ERR_OK;
+		}
+	}
+
+	return _MALI_OSK_ERR_ITEM_NOT_FOUND;
+}
+
+u32 _mali_osk_resource_base_address(void)
+{
+	u32 lowest_addr = 0xFFFFFFFF;
+	u32 ret = 0;
+
+	if (NULL != mali_platform_device)
+	{
+		int i;
+		for (i = 0; i < mali_platform_device->num_resources; i++)
+		{
+			if (mali_platform_device->resource[i].flags & IORESOURCE_MEM &&
+			    mali_platform_device->resource[i].start < lowest_addr)
+			{
+				lowest_addr = mali_platform_device->resource[i].start;
+				ret = lowest_addr;
 			}
 		}
 	}
 
-    return _MALI_OSK_ERR_OK;
+	return ret;
 }
 
-void _mali_osk_resources_term( _mali_osk_resource_t **arch_config, u32 num_resources )
+_mali_osk_errcode_t _mali_osk_device_data_get(struct _mali_osk_device_data *data)
 {
-    /* Nothing to do */
+	MALI_DEBUG_ASSERT_POINTER(data);
+
+	if (NULL != mali_platform_device)
+	{
+		struct mali_gpu_device_data* os_data = NULL;
+
+		os_data = (struct mali_gpu_device_data*)mali_platform_device->dev.platform_data;
+		if (NULL != os_data)
+		{
+			/* Copy data from OS dependant struct to Mali neutral struct (identical!) */
+			data->dedicated_mem_start = os_data->dedicated_mem_start;
+			data->dedicated_mem_size = os_data->dedicated_mem_size;
+			data->shared_mem_size = os_data->shared_mem_size;
+			data->fb_start = os_data->fb_start;
+			data->fb_size = os_data->fb_size;
+			data->utilization_interval = os_data->utilization_interval;
+			data->utilization_handler = os_data->utilization_handler;
+			return _MALI_OSK_ERR_OK;
+		}
+	}
+
+	return _MALI_OSK_ERR_ITEM_NOT_FOUND;
 }
