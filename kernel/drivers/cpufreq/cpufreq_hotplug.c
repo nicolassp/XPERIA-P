@@ -116,7 +116,7 @@ unsigned int io_is_busy;
 .hotplug_in_sampling_periods =	DEFAULT_HOTPLUG_IN_SAMPLING_PERIODS,
 .hotplug_out_sampling_periods =	DEFAULT_HOTPLUG_OUT_SAMPLING_PERIODS,
 .hotplug_load_index =	0,
-.ignore_nice =	0,
+.ignore_nice =	1,
 .io_is_busy =	0,
 };
 

@@ -39,7 +39,7 @@ static unsigned int susp_enabled = 0;
 static unsigned int suspended = 0;
 static unsigned int registration = 0;
 static unsigned int suspend_cpu_up = 95;
-static unsigned int highfreq = 1350000;
+static unsigned int highfreq = 1000000;
 
 /* greater than 80% avg load across online CPUs increases frequency */
 #define DEFAULT_UP_FREQ_MIN_LOAD (80)
@@ -118,7 +118,7 @@ unsigned int io_is_busy;
 .hotplug_in_sampling_periods =	DEFAULT_HOTPLUG_IN_SAMPLING_PERIODS,
 .hotplug_out_sampling_periods =	DEFAULT_HOTPLUG_OUT_SAMPLING_PERIODS,
 .hotplug_load_index =	0,
-.ignore_nice =	0,
+.ignore_nice =	1,
 .io_is_busy =	0,
 };
 
@@ -796,5 +796,3 @@ fs_initcall(cpufreq_gov_dbs_init);
 module_init(cpufreq_gov_dbs_init);
 #endif
 module_exit(cpufreq_gov_dbs_exit);
-
-
